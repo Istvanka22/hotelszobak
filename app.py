@@ -1093,6 +1093,8 @@ def szoba_szerkesztese():
                 szoba["vendeg"] = uj_vendeg
                 szoba["forras"] = "Recepció"
                 szoba["kicsekkolt"] = False
+                if szoba.get("fo", "-") == "-" and not uj_fo:
+                    szoba["fo"] = "1 felnőtt"
                 if not becsekkolt_pipa and not szoba["becsekkolt"]:
                     szoba["becsekkolt"] = True
             if uj_fo:
@@ -1116,11 +1118,27 @@ def szoba_szerkesztese():
             elif tavozas_datum:
                 szoba["be_ki"] = f"Távozás: {tavozas_datum}"
 
+            eltelt_megadva = False
             if eltelt_raw.isdigit():
                 szoba["eltelt_napok"] = int(eltelt_raw)
                 szoba["napi_takaritas_kesz"] = False
+                eltelt_megadva = True
             if ejszakak_raw.isdigit():
                 szoba["ejszakak"] = int(ejszakak_raw)
+
+            # Ha legalább 1 napja itt van a vendég, Maradó (kék) lesz, és kéri a napi takarítást
+            if eltelt_megadva and szoba["eltelt_napok"] >= 1:
+                if szoba.get("vendeg", "-") == "-" or not szoba.get("vendeg", "").strip():
+                    szoba["vendeg"] = "Szállodai vendég"
+                    szoba["forras"] = "Recepció"
+                    if szoba.get("fo", "-") == "-":
+                        szoba["fo"] = "1 felnőtt"
+                szoba["kicsekkolt"] = False
+                szoba["becsekkolt"] = True
+                szoba["statusz"] = "Maradó"
+                szoba["napi_takaritas_kesz"] = False
+                if int(szoba.get("ejszakak", 0)) <= szoba["eltelt_napok"]:
+                    szoba["ejszakak"] = szoba["eltelt_napok"] + 1
 
             if becsekkolt_pipa:
                 szoba["becsekkolt"] = True
@@ -1142,7 +1160,12 @@ def szoba_szerkesztese():
             if uj_becsekk_ido:
                 szoba["becsekkolas_idopont"] = uj_becsekk_ido
                 szoba["becsekkolt"] = True
-            elif (becsekkolt_pipa or uj_vendeg or uj_statusz == "Maradó") and not szoba.get("becsekkolas_idopont"):
+            elif (
+                becsekkolt_pipa
+                or uj_vendeg
+                or uj_statusz == "Maradó"
+                or (eltelt_megadva and szoba["eltelt_napok"] >= 1)
+            ) and not szoba.get("becsekkolas_idopont"):
                 szoba["becsekkolas_idopont"] = aktualis_idopont()
 
             utolso_ertesites = f"Szoba {kivalasztott_szam}: adatok elmentve."
